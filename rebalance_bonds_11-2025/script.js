@@ -299,7 +299,8 @@ function GET_COUPON_VALUE(ticker) {
   }
 
   const cache = CacheService.getScriptCache();
-  const cacheKey = ticker + '_coupon_value';
+  // Changed cache key to force refresh after logic update (v3)
+  const cacheKey = ticker + '_coupon_value_v3';
   const cached = cache.get(cacheKey);
   if (cached !== null) {
     return JSON.parse(cached);
@@ -307,7 +308,7 @@ function GET_COUPON_VALUE(ticker) {
 
   const result = fetchCouponValueInternal(ticker);
 
-  // Кэшируем результат на 6 часов (21600 секунд), т.к. размер купона меняется редко
+  // Кэшируем результат на 6 часов (21600 секунд)
   cache.put(cacheKey, JSON.stringify(result), 21600);
 
   return result;
@@ -319,9 +320,11 @@ function GET_COUPON_VALUE(ticker) {
  * @return {number | string} - Размер купона или текстовая ошибка.
  */
 function fetchCouponValueInternal(ticker) {
+  // 1. Пытаемся получить данные из основного источника (securities)
   const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(
     ticker
   )}.json?iss.meta=off`;
+
   try {
     const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     if (response.getResponseCode() !== 200) {
@@ -340,21 +343,108 @@ function fetchCouponValueInternal(ticker) {
 
     const columns = data.securities.columns;
     const row = data.securities.data[0];
-
     const couponValueIndex = columns.indexOf('COUPONVALUE');
 
-    if (couponValueIndex === -1) {
-      return 'Поле COUPONVALUE отсутствует';
+    if (couponValueIndex !== -1) {
+      const couponValue = row[couponValueIndex];
+      // Если значение есть и оно валидное, возвращаем его
+      // ВАЖНО: Если значение 0, считаем его отсутствующим (для флоатеров) и идем в fallback
+      if (couponValue !== null && typeof couponValue !== 'undefined') {
+        const val = parseFloat(couponValue);
+        if (val !== 0) {
+          return val;
+        }
+      }
     }
 
-    const couponValue = row[couponValueIndex];
-
-    if (couponValue === null || typeof couponValue === 'undefined') {
-      return 'Нет данных о купоне';
-    }
-
-    return parseFloat(couponValue);
+    // 2. Если значение купона не найдено или равно 0, пробуем альтернативный источник (bondization)
+    return fetchCouponFromBondization(ticker);
   } catch (e) {
-    return 'Ошибка скрипта';
+    return 'Ошибка скрипта: ' + e.message;
+  }
+}
+
+/**
+ * Дополнительная функция для получения купона через bondization.
+ * Ищет следующий купон, если его значение null - берет предыдущий известный.
+ */
+function fetchCouponFromBondization(ticker) {
+  const url = `https://iss.moex.com/iss/securities/${encodeURIComponent(ticker)}/bondization.json?iss.meta=off&limit=unlimited`;
+
+  try {
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (response.getResponseCode() !== 200) {
+      return `Ошибка API (bondization): ${response.getResponseCode()}`;
+    }
+    const data = JSON.parse(response.getContentText());
+
+    if (!data.coupons || !data.coupons.data || !data.coupons.columns) {
+      return 'Нет данных о купонах (bondization)';
+    }
+
+    const columns = data.coupons.columns;
+    const rows = data.coupons.data;
+
+    const dateIdx = columns.indexOf('coupondate');
+    const valueIdx = columns.indexOf('value');
+    const valueRubIdx = columns.indexOf('value_rub');
+
+    if (dateIdx === -1) return 'Нет даты купона в данных';
+
+    // Преобразуем массив в объекты для удобства и сортируем по дате
+    const coupons = rows
+      .map((r) => {
+        // Безопасное получение значения: проверяем индекс и null
+        let val = null;
+        if (valueRubIdx !== -1 && r[valueRubIdx] !== null) {
+          val = r[valueRubIdx];
+        } else if (valueIdx !== -1 && r[valueIdx] !== null) {
+          val = r[valueIdx];
+        }
+
+        return {
+          date: new Date(r[dateIdx]),
+          value: val !== null ? parseFloat(val) : null,
+        };
+      })
+      .sort((a, b) => a.date - b.date);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let lastKnownValue = null;
+    let nextCoupon = null;
+
+    for (let i = 0; i < coupons.length; i++) {
+      const c = coupons[i];
+
+      // Если дата купона в будущем (или сегодня)
+      if (c.date >= today) {
+        nextCoupon = c;
+        // Если у следующего купона есть значение и оно не 0, возвращаем его
+        if (c.value !== null && !isNaN(c.value) && c.value !== 0) {
+          return c.value;
+        }
+        // Если значения нет или оно 0, прерываем цикл, чтобы вернуть lastKnownValue
+        break;
+      }
+
+      // Запоминаем последнее известное значение из прошлых купонов
+      // Для прошлых купонов 0 может быть валидным значением (хотя редко), но пока оставим как есть
+      // Если мы хотим быть строгими к флоатерам, можно тоже игнорировать 0, но это рискованно для других типов.
+      // Однако, если мы ищем "предыдущий известный", то 0 вряд ли полезен.
+      // Давайте игнорировать 0 и здесь для надежности.
+      if (c.value !== null && !isNaN(c.value) && c.value !== 0) {
+        lastKnownValue = c.value;
+      }
+    }
+
+    if (lastKnownValue !== null) {
+      return lastKnownValue;
+    }
+
+    return 'Купон не определен';
+  } catch (e) {
+    return 'Ошибка bondization: ' + e.message;
   }
 }
