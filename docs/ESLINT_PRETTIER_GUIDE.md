@@ -1,6 +1,7 @@
 # Руководство по работе с ESLint и Prettier
 
 Полная инструкция по использованию ESLint и Prettier в проекте `rebalance_bonds_11-2025`.
+Ссылка на таблицу - https://docs.google.com/spreadsheets/d/14QN-103oPdywat3fKgZyde1zmVU4lvWSG1LIk8OlKx8/edit?usp=sharing
 
 ---
 
