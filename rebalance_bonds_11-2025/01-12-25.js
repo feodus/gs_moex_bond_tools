@@ -1,5 +1,5 @@
 /**
- * Константа: задержка между запросами при массовом обновлении (в миллисекундах)
+ * Константа: задержка между запросами при массовом обновлении (в миллисекундах).
  */
 const DELAY_MS = 400; // 0.4 секунды
 
@@ -83,9 +83,7 @@ function forceRecalculatePrices() {
  * @return {number | string} - Цена или текстовая ошибка.
  */
 function fetchSinglePriceInternal(ticker) {
-  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(
-    ticker
-  )}.json?iss.meta=off`;
+  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(ticker)}.json?iss.meta=off`;
   try {
     const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     if (response.getResponseCode() !== 200) {
@@ -168,9 +166,7 @@ function GET_NEXT_COUPON(ticker) {
  * @return {Date | string} - Объект Date или текстовая ошибка.
  */
 function fetchNextCouponInternal(ticker) {
-  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(
-    ticker
-  )}.json?iss.meta=off`;
+  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(ticker)}.json?iss.meta=off`;
   try {
     const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     if (response.getResponseCode() !== 200) {
@@ -243,9 +239,7 @@ function GET_MOEX_NAME(ticker) {
  * @return {string} - Наименование или текстовая ошибка.
  */
 function fetchBondNameInternal(ticker) {
-  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(
-    ticker
-  )}.json?iss.meta=off`;
+  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(ticker)}.json?iss.meta=off`;
   try {
     const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     if (response.getResponseCode() !== 200) {
@@ -282,78 +276,6 @@ function fetchBondNameInternal(ticker) {
     }
 
     return name;
-  } catch (e) {
-    return 'Ошибка скрипта';
-  }
-}
-
-/**
- * Кастомная функция для ячейки. Возвращает РАЗМЕР СЛЕДУЮЩЕГО КУПОНА по тикеру.
- * @param {string} ticker Торговый код облигации (например, "ОФЗ 26227").
- * @return {number | string} Размер следующего купона в рублях или текст ошибки.
- * @customfunction
- */
-function GET_COUPON_VALUE(ticker) {
-  if (!ticker || ticker.trim() === '') {
-    return null;
-  }
-
-  const cache = CacheService.getScriptCache();
-  const cacheKey = ticker + '_coupon_value';
-  const cached = cache.get(cacheKey);
-  if (cached !== null) {
-    return JSON.parse(cached);
-  }
-
-  const result = fetchCouponValueInternal(ticker);
-
-  // Кэшируем результат на 6 часов (21600 секунд), т.к. размер купона меняется редко
-  cache.put(cacheKey, JSON.stringify(result), 21600);
-
-  return result;
-}
-
-/**
- * Внутренняя функция для получения размера следующего купона.
- * @param {string} ticker - Торговый код бумаги.
- * @return {number | string} - Размер купона или текстовая ошибка.
- */
-function fetchCouponValueInternal(ticker) {
-  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(
-    ticker
-  )}.json?iss.meta=off`;
-  try {
-    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-    if (response.getResponseCode() !== 200) {
-      return `Ошибка API: ${response.getResponseCode()}`;
-    }
-    const data = JSON.parse(response.getContentText());
-
-    if (
-      !data.securities ||
-      !data.securities.columns ||
-      !data.securities.data ||
-      data.securities.data.length === 0
-    ) {
-      return `Тикер не найден`;
-    }
-
-    const columns = data.securities.columns;
-    const row = data.securities.data[0];
-
-    const couponValueIndex = columns.indexOf('COUPONVALUE');
-
-    if (couponValueIndex === -1) {
-      return 'Поле COUPONVALUE отсутствует';
-    }
-
-    const couponValue = row[couponValueIndex];
-
-    if (couponValue === null || typeof couponValue === 'undefined') {
-      return 'Нет данных о купоне';
-    }
-
-    return parseFloat(couponValue);
   } catch (e) {
     return 'Ошибка скрипта';
   }

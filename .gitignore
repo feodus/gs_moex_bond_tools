@@ -25,7 +25,11 @@ Temporary Items
 .apdisk
 
 # Editors
-.vscode/
 .idea/
 *.swp
 *.swo
+
+# Node.js
+node_modules/
+.env
+package-lock.json
