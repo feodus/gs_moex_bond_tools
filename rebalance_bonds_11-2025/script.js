@@ -1,5 +1,5 @@
 /**
- * Константа: задержка между запросами при массовом обновлении (в миллисекундах).
+ * Константа: задержка между запросами при массовом обновлении (в миллисекундах)
  */
 const DELAY_MS = 400; // 0.4 секунды
 
@@ -8,8 +8,8 @@ const DELAY_MS = 400; // 0.4 секунды
  */
 function onOpen() {
   SpreadsheetApp.getUi()
-    .createMenu('MOEX')
-    .addItem('Обновить все цены (с задержкой)', 'forceRecalculatePrices')
+    .createMenu("MOEX")
+    .addItem("Обновить все цены (с задержкой)", "forceRecalculatePrices")
     .addToUi();
 }
 
@@ -43,7 +43,7 @@ function GET_MOEX_PRICE(ticker) {
 function forceRecalculatePrices() {
   const sheet = SpreadsheetApp.getActiveSheet();
   const ui = SpreadsheetApp.getUi();
-  const targetFunctionName = 'GET_MOEX_PRICE';
+  const targetFunctionName = "GET_MOEX_PRICE";
 
   const dataRange = sheet.getDataRange();
   const allFormulas = dataRange.getFormulas();
@@ -51,7 +51,10 @@ function forceRecalculatePrices() {
 
   for (let i = 0; i < allFormulas.length; i++) {
     for (let j = 0; j < allFormulas[i].length; j++) {
-      if (allFormulas[i][j] && allFormulas[i][j].toUpperCase().includes(targetFunctionName)) {
+      if (
+        allFormulas[i][j] &&
+        allFormulas[i][j].toUpperCase().includes(targetFunctionName)
+      ) {
         targetCells.push(sheet.getRange(i + 1, j + 1));
       }
     }
@@ -62,10 +65,15 @@ function forceRecalculatePrices() {
     return;
   }
 
-  ui.alert(`Найдено ${targetCells.length} ячеек. Начинаю обновление...`, ui.ButtonSet.OK);
-  SpreadsheetApp.getActiveSpreadsheet().toast(`Обновление ${targetCells.length} ячеек...`);
+  ui.alert(
+    `Найдено ${targetCells.length} ячеек. Начинаю обновление...`,
+    ui.ButtonSet.OK
+  );
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    `Обновление ${targetCells.length} ячеек...`
+  );
 
-  targetCells.forEach(cell => {
+  targetCells.forEach((cell) => {
     const originalFormula = cell.getFormula();
     cell.clearContent();
     SpreadsheetApp.flush();
@@ -73,9 +81,12 @@ function forceRecalculatePrices() {
     Utilities.sleep(DELAY_MS);
   });
 
-  SpreadsheetApp.getActiveSpreadsheet().toast('Обновление цен завершено!', 'Готово', 5);
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    "Обновление цен завершено!",
+    "Готово",
+    5
+  );
 }
-
 
 /**
  * Внутренняя функция для получения данных. Возвращает цену или текст ошибки.
@@ -84,16 +95,25 @@ function forceRecalculatePrices() {
  * @return {number | string} - Цена или текстовая ошибка.
  */
 function fetchSinglePriceInternal(ticker) {
-  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(ticker)}.json?iss.meta=off`;
+  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(
+    ticker
+  )}.json?iss.meta=off`;
   try {
-    const response = UrlFetchApp.fetch(url, { 'muteHttpExceptions': true });
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     if (response.getResponseCode() !== 200) {
       return `Ошибка API: ${response.getResponseCode()}`;
     }
     const data = JSON.parse(response.getContentText());
 
     // Проверяем наличие ключевых блоков данных
-    if (!data.marketdata || !data.securities || !data.marketdata.data || !data.securities.data || data.marketdata.data.length === 0 || data.securities.data.length === 0) {
+    if (
+      !data.marketdata ||
+      !data.securities ||
+      !data.marketdata.data ||
+      !data.securities.data ||
+      data.marketdata.data.length === 0 ||
+      data.securities.data.length === 0
+    ) {
       return `Тикер не найден или API вернул неполные данные`;
     }
 
@@ -104,17 +124,17 @@ function fetchSinglePriceInternal(ticker) {
     const securitiesRow = data.securities.data[0];
 
     // Ищем цену в порядке приоритета по обоим блокам
-    const price = marketdataRow[marketdataColumns.indexOf('LAST')] ??
-      marketdataRow[marketdataColumns.indexOf('CLOSEPRICE')] ??
-      securitiesRow[securitiesColumns.indexOf('PREVLEGALCLOSEPRICE')] ??
-      securitiesRow[securitiesColumns.indexOf('PREVPRICE')];
+    const price =
+      marketdataRow[marketdataColumns.indexOf("LAST")] ??
+      marketdataRow[marketdataColumns.indexOf("CLOSEPRICE")] ??
+      securitiesRow[securitiesColumns.indexOf("PREVLEGALCLOSEPRICE")] ??
+      securitiesRow[securitiesColumns.indexOf("PREVPRICE")];
 
-    if (price === null || typeof price === 'undefined') {
+    if (price === null || typeof price === "undefined") {
       return "Цена не найдена"; // Если ни одного значения не нашлось
     }
 
     return parseFloat(price);
-
   } catch (e) {
     return "Ошибка скрипта";
   }
@@ -154,30 +174,36 @@ function GET_NEXT_COUPON(ticker) {
   return result;
 }
 
-
 /**
  * Внутренняя функция для получения данных о следующем купоне.
  * @param {string} ticker - Торговый код бумаги.
  * @return {Date | string} - Объект Date или текстовая ошибка.
  */
 function fetchNextCouponInternal(ticker) {
-  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(ticker)}.json?iss.meta=off`;
+  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(
+    ticker
+  )}.json?iss.meta=off`;
   try {
-    const response = UrlFetchApp.fetch(url, { 'muteHttpExceptions': true });
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     if (response.getResponseCode() !== 200) {
       return `Ошибка API: ${response.getResponseCode()}`;
     }
     const data = JSON.parse(response.getContentText());
 
     // Данные о купоне лежат в блоке 'securities'
-    if (!data.securities || !data.securities.columns || !data.securities.data || data.securities.data.length === 0) {
+    if (
+      !data.securities ||
+      !data.securities.columns ||
+      !data.securities.data ||
+      data.securities.data.length === 0
+    ) {
       return `Тикер не найден`;
     }
 
     const columns = data.securities.columns;
     const row = data.securities.data[0];
 
-    const nextCouponIndex = columns.indexOf('NEXTCOUPON');
+    const nextCouponIndex = columns.indexOf("NEXTCOUPON");
 
     if (nextCouponIndex === -1) {
       return "Поле NEXTCOUPON отсутствует";
@@ -192,7 +218,6 @@ function fetchNextCouponInternal(ticker) {
 
     // Возвращаем как объект Date, чтобы Google Sheets правильно понял формат
     return new Date(couponDateStr);
-
   } catch (e) {
     return "Ошибка скрипта";
   }
@@ -230,15 +255,22 @@ function GET_MOEX_NAME(ticker) {
  * @return {string} - Наименование или текстовая ошибка.
  */
 function fetchBondNameInternal(ticker) {
-  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(ticker)}.json?iss.meta=off`;
+  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(
+    ticker
+  )}.json?iss.meta=off`;
   try {
-    const response = UrlFetchApp.fetch(url, { 'muteHttpExceptions': true });
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     if (response.getResponseCode() !== 200) {
       return `Ошибка API: ${response.getResponseCode()}`;
     }
     const data = JSON.parse(response.getContentText());
 
-    if (!data.securities || !data.securities.columns || !data.securities.data || data.securities.data.length === 0) {
+    if (
+      !data.securities ||
+      !data.securities.columns ||
+      !data.securities.data ||
+      data.securities.data.length === 0
+    ) {
       return `Тикер не найден`;
     }
 
@@ -246,8 +278,8 @@ function fetchBondNameInternal(ticker) {
     const row = data.securities.data[0];
 
     // Пробуем найти SECNAME (полное наименование) или SHORTNAME (краткое)
-    const secNameIndex = columns.indexOf('SECNAME');
-    const shortNameIndex = columns.indexOf('SHORTNAME');
+    const secNameIndex = columns.indexOf("SECNAME");
+    const shortNameIndex = columns.indexOf("SHORTNAME");
 
     let name = null;
     if (secNameIndex !== -1) {
@@ -262,7 +294,6 @@ function fetchBondNameInternal(ticker) {
     }
 
     return name;
-
   } catch (e) {
     return "Ошибка скрипта";
   }
