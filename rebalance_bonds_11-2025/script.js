@@ -7,7 +7,13 @@ const DELAY_MS = 400; // 0.4 секунды
  * Список всех кастомных функций для обновления
  * При добавлении новой функции просто добавьте её название в этот массив
  */
-const CUSTOM_FUNCTIONS = ['GET_MOEX_PRICE', 'GET_NEXT_COUPON', 'GET_MOEX_NAME', 'GET_COUPON_VALUE'];
+const CUSTOM_FUNCTIONS = [
+  'GET_MOEX_PRICE',
+  'GET_NEXT_COUPON',
+  'GET_MOEX_NAME',
+  'GET_COUPON_VALUE',
+  'GET_MATURITY_DATE',
+];
 
 /**
  * При открытии документа создает в меню пункт "MOEX".
@@ -372,6 +378,82 @@ function fetchCouponValueInternal(ticker) {
     return fetchCouponFromBondization(ticker);
   } catch (e) {
     return 'Ошибка скрипта: ' + e.message;
+  }
+}
+
+/**
+ * Кастомная функция для ячейки. Возвращает ДАТУ ПОГАШЕНИЯ облигации по тикеру.
+ * @param {string} ticker Торговый код облигации (например, "ОФЗ 26227").
+ * @return {Date | string} Дата погашения или текстовое описание ошибки.
+ * @customfunction
+ */
+function GET_MATURITY_DATE(ticker) {
+  if (!ticker || ticker.trim() === '') {
+    return null;
+  }
+
+  const cache = CacheService.getScriptCache();
+  const cacheKey = ticker + '_maturity';
+  const cached = cache.get(cacheKey);
+  if (cached !== null) {
+    const cachedValue = JSON.parse(cached);
+    return cachedValue ? new Date(cachedValue) : 'Нет данных';
+  }
+
+  const result = fetchMaturityDateInternal(ticker);
+
+  // Кэшируем результат на 24 часа (86400 секунд), т.к. дата погашения не меняется
+  cache.put(cacheKey, JSON.stringify(result), 86400);
+
+  if (result instanceof Date) {
+    return result;
+  }
+  return result;
+}
+
+/**
+ * Внутренняя функция для получения даты погашения облигации.
+ * @param {string} ticker - Торговый код бумаги.
+ * @return {Date | string} - Объект Date или текстовая ошибка.
+ */
+function fetchMaturityDateInternal(ticker) {
+  const url = `https://iss.moex.com/iss/engines/stock/markets/bonds/securities/${encodeURIComponent(
+    ticker
+  )}.json?iss.meta=off`;
+  try {
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (response.getResponseCode() !== 200) {
+      return `Ошибка API: ${response.getResponseCode()}`;
+    }
+    const data = JSON.parse(response.getContentText());
+
+    if (
+      !data.securities ||
+      !data.securities.columns ||
+      !data.securities.data ||
+      data.securities.data.length === 0
+    ) {
+      return `Тикер не найден`;
+    }
+
+    const columns = data.securities.columns;
+    const row = data.securities.data[0];
+
+    const matDateIndex = columns.indexOf('MATDATE');
+
+    if (matDateIndex === -1) {
+      return 'Поле MATDATE отсутствует';
+    }
+
+    const matDateStr = row[matDateIndex];
+
+    if (!matDateStr || matDateStr === '0000-00-00') {
+      return 'Дата погашения не определена';
+    }
+
+    return new Date(matDateStr);
+  } catch (e) {
+    return 'Ошибка скрипта';
   }
 }
 
