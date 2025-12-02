@@ -13,6 +13,7 @@ const CUSTOM_FUNCTIONS = [
   'GET_MOEX_NAME',
   'GET_COUPON_VALUE',
   'GET_MATURITY_DATE',
+  'GET_NEAREST_OPTION_DATE',
 ];
 
 /**
@@ -539,5 +540,156 @@ function fetchCouponFromBondization(ticker) {
     return 'Купон не определен';
   } catch (e) {
     return 'Ошибка bondization: ' + e.message;
+  }
+}
+
+/**
+ * Кастомная функция для ячейки. Возвращает БЛИЖАЙШУЮ ДАТУ (Put/Call опцион или амортизация).
+ * Пытается установить примечание к ячейке с деталями (работает только при запуске из скрипта, не как UDF).
+ * @param {string} ticker ISIN или Торговый код облигации.
+ * @return {Date | string} Ближайшая дата или текст ошибки.
+ * @customfunction
+ */
+function GET_NEAREST_OPTION_DATE(ticker) {
+  if (!ticker) return 'Укажите тикер';
+
+  // Получаем данные
+  const result = fetchBondOptionDatesInternal(ticker);
+
+  if (typeof result === 'string') {
+    return result; // Возвращаем ошибку
+  }
+
+  // Пытаемся установить примечание (Note).
+  // ВНИМАНИЕ: В контексте простой формулы (Custom Function) это обычно НЕ работает или запрещено.
+  // Но если функция вызывается скриптом, это сработает.
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet();
+    // Проверка, не находимся ли мы в контексте ограничения
+    if (sheet) {
+      const range = SpreadsheetApp.getActiveRange();
+      if (range) {
+        range.setNote(result.note);
+      }
+    }
+  } catch (e) {
+    // Игнорируем ошибку установки примечания, так как в UDF это часто невозможно
+    // console.log('Не удалось установить примечание: ' + e.message);
+  }
+
+  return result.date;
+}
+
+/**
+ * Внутренняя функция для получения дат опционов и амортизаций.
+ * @param {string} ticker - ISIN или код бумаги.
+ * @return {Object | string} - Объект { date: Date, note: string } или строка ошибки.
+ */
+function fetchBondOptionDatesInternal(ticker) {
+  const url = `https://iss.moex.com/iss/securities/${encodeURIComponent(ticker)}/bondization.json?iss.meta=off&limit=unlimited`;
+
+  try {
+    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (response.getResponseCode() !== 200) {
+      return `Ошибка API: ${response.getResponseCode()}`;
+    }
+    const data = JSON.parse(response.getContentText());
+
+    // Проверяем наличие необходимых блоков данных
+    // Обычно это 'amortizations' и 'offers'
+    const amortizations = data.amortizations;
+    const offers = data.offers;
+
+    // Массив всех найденных будущих событий
+    let events = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // 1. Обработка амортизаций
+    if (amortizations && amortizations.columns && amortizations.data) {
+      const cols = amortizations.columns;
+      const dateIdx = cols.indexOf('amortdate');
+      // const valIdx = cols.indexOf('value'); // процент или сумма, для инфо (не используется)
+
+      if (dateIdx !== -1) {
+        amortizations.data.forEach((row) => {
+          const dStr = row[dateIdx];
+          if (dStr) {
+            const d = new Date(dStr);
+            if (d >= today) {
+              events.push({
+                date: d,
+                type: 'Амортизация',
+                description: `Амортизация: ${dStr}`,
+              });
+            }
+          }
+        });
+      }
+    }
+
+    // 2. Обработка оферт (Put/Call)
+    // В MOEX 'offers' обычно содержит оферты (Put).
+    // Call-опционы могут быть там же или в отдельной таблице, но чаще всего 'offers' - это Put/Call.
+    // Нужно смотреть поле 'offertype' или подобное, если оно есть.
+    if (offers && offers.columns && offers.data) {
+      const cols = offers.columns;
+      const dateIdx = cols.indexOf('offerdate');
+      const typeIdx = cols.indexOf('offertype'); // Может отсутствовать
+
+      if (dateIdx !== -1) {
+        offers.data.forEach((row) => {
+          const dStr = row[dateIdx];
+          if (dStr) {
+            const d = new Date(dStr);
+            if (d >= today) {
+              let type = 'Оферта';
+              // Пытаемся уточнить тип, если есть поле offertype
+              if (typeIdx !== -1 && row[typeIdx]) {
+                type = row[typeIdx]; // Например "Put", "Call" или код
+              }
+
+              // Если тип не определен явно, считаем Put (стандартная оферта)
+              // Можно добавить логику: если это Call, то помечаем как Call
+
+              events.push({
+                date: d,
+                type: type, // 'Оферта' (Put) или 'Call'
+                description: `${type}: ${dStr}`,
+              });
+            }
+          }
+        });
+      }
+    }
+
+    // Если событий нет
+    if (events.length === 0) {
+      // Можно вернуть дату погашения как fallback, или сообщение
+      // Пользователь просил "выбрать самую ближайшую". Если нет опционов/амортизаций, возможно стоит вернуть MATDATE?
+      // Но функция называется GET_NEAREST_OPTION_DATE.
+      // Давайте вернем null или сообщение, чтобы не путать с погашением.
+      // Или проверим MATDATE?
+      // Логичнее вернуть "Нет оферт/аморт."
+      return 'Нет оферт/аморт.';
+    }
+
+    // Сортируем события по дате
+    events.sort((a, b) => a.date - b.date);
+
+    // Ближайшее событие
+    const nearest = events[0];
+
+    // Формируем текст примечания со всеми датами
+    // Убираем дубликаты описаний, если вдруг
+    const uniqueDescriptions = [...new Set(events.map((e) => e.description))];
+    const noteText = uniqueDescriptions.join('\n') + `\n\nБлижайшая: ${nearest.description}`;
+
+    return {
+      date: nearest.date,
+      note: noteText,
+    };
+  } catch (e) {
+    return 'Ошибка скрипта: ' + e.message;
   }
 }
