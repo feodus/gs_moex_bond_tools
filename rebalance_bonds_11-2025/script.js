@@ -4,12 +4,18 @@
 const DELAY_MS = 400; // 0.4 секунды
 
 /**
+ * Список всех кастомных функций для обновления
+ * При добавлении новой функции просто добавьте её название в этот массив
+ */
+const CUSTOM_FUNCTIONS = ['GET_MOEX_PRICE', 'GET_NEXT_COUPON', 'GET_MOEX_NAME', 'GET_COUPON_VALUE'];
+
+/**
  * При открытии документа создает в меню пункт "MOEX".
  */
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('MOEX')
-    .addItem('Обновить все цены (с задержкой)', 'forceRecalculatePrices')
+    .addItem('Обновить все данные (с задержкой)', 'forceRecalculatePrices')
     .addToUi();
 }
 
@@ -38,27 +44,32 @@ function GET_MOEX_PRICE(ticker) {
 }
 
 /**
- * Улучшенный обработчик: находит все ячейки с функцией GET_MOEX_PRICE и обновляет их по очереди.
+ * Универсальный обработчик: находит все ячейки со всеми кастомными функциями и обновляет их по очереди.
  */
 function forceRecalculatePrices() {
   const sheet = SpreadsheetApp.getActiveSheet();
   const ui = SpreadsheetApp.getUi();
-  const targetFunctionName = 'GET_MOEX_PRICE';
 
   const dataRange = sheet.getDataRange();
   const allFormulas = dataRange.getFormulas();
   const targetCells = [];
 
+  // Ищем все ячейки, содержащие любую из кастомных функций
   for (let i = 0; i < allFormulas.length; i++) {
     for (let j = 0; j < allFormulas[i].length; j++) {
-      if (allFormulas[i][j] && allFormulas[i][j].toUpperCase().includes(targetFunctionName)) {
-        targetCells.push(sheet.getRange(i + 1, j + 1));
+      if (allFormulas[i][j]) {
+        const formulaUpper = allFormulas[i][j].toUpperCase();
+        // Проверяем, содержится ли хотя бы одна из функций
+        const hasCustomFunction = CUSTOM_FUNCTIONS.some((fn) => formulaUpper.includes(fn));
+        if (hasCustomFunction) {
+          targetCells.push(sheet.getRange(i + 1, j + 1));
+        }
       }
     }
   }
 
   if (targetCells.length === 0) {
-    ui.alert(`На листе не найдено ячеек с функцией =${targetFunctionName}().`);
+    ui.alert(`На листе не найдено ячеек с функциями: ${CUSTOM_FUNCTIONS.join(', ')}`);
     return;
   }
 
@@ -73,7 +84,7 @@ function forceRecalculatePrices() {
     Utilities.sleep(DELAY_MS);
   });
 
-  SpreadsheetApp.getActiveSpreadsheet().toast('Обновление цен завершено!', 'Готово', 5);
+  SpreadsheetApp.getActiveSpreadsheet().toast('Обновление данных завершено!', 'Готово', 5);
 }
 
 /**
