@@ -6,8 +6,8 @@
 
 ## Структура проекта
 
-- `rebalance_bonds_11-2025/script.js` - основной файл с логикой приложения
-- `rebalance_bonds_11-2025/appscript.json` - конфигурация Google Apps Script
+- `gs_moex_bond_tools/script.js` - основной файл с логикой приложения
+- `gs_moex_bond_tools/appscript.json` - конфигурация Google Apps Script
 - `.kilocode/rules/memory-bank/` - файлы Memory Bank
 - `docs/` - документация
 - `package.json`, `.eslintrc.json`, `.prettierrc` - файлы конфигурации инструментов разработки
