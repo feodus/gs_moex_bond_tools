@@ -1,0 +1,93 @@
+# Технологии и зависимости проекта MOEX Bond Data for Google Sheets
+
+## Основные технологии
+
+- **Google Apps Script (GAS)** - основная платформа для реализации
+- **JavaScript (ES6+)** - язык программирования для реализации логики
+- **Google Sheets API** - для интеграции с таблицами
+- **MOEX ISS API** - внешний API для получения данных об облигациях
+- **UrlFetchApp** - для выполнения HTTP-запросов к внешним API
+- **CacheService** - для кэширования данных
+
+## Runtime и версии
+
+- **Runtime**: V8 (новое поколение среды выполнения Google Apps Script)
+- **Временные зоны**: Europe/Moscow (указана в appscript.json)
+
+## Инструменты разработки
+
+### Linting и форматирование
+
+- **ESLint** (^8.57.1) - статический анализ кода
+- **eslint-plugin-googleappsscript** - плагин для проверки кода GAS
+- **Prettier** (^3.7.3) - форматирование кода
+- **eslint-config-prettier** - отключение конфликтующих правил ESLint
+- **eslint-plugin-prettier** - интеграция Prettier с ESLint
+
+### Конфигурация инструментов
+
+Файл [.eslintrc.json](../../../.eslintrc.json:1):
+
+```json
+{
+  "extends": ["eslint:recommended", "plugin:prettier/recommended"],
+  "env": {
+    "es6": true,
+    "node": true,
+    "googleappsscript/googleappsscript": true
+  },
+  "plugins": ["googleappsscript"],
+  "parserOptions": {
+    "ecmaVersion": 2020
+  },
+  "rules": {
+    "prettier/prettier": "error"
+  }
+}
+```
+
+Файл [.prettierrc](../../../.prettierrc:1):
+
+```json
+{
+  "singleQuote": true,
+  "trailingComma": "es5",
+  "printWidth": 100,
+  "tabWidth": 2,
+  "semi": true
+}
+```
+
+## Зависимости
+
+### Dev Dependencies (из package.json)
+
+- eslint (^8.57.1)
+- eslint-config-prettier (^10.1.8)
+- eslint-plugin-googleappsscript (^1.0.5)
+- eslint-plugin-prettier (^5.5.4)
+- prettier (^3.7.3)
+
+## Структура проекта
+
+- **script.js** - основной файл с логикой приложения
+- **appscript.json** - конфигурационный файл Google Apps Script
+- **README.md** - документация для пользователей
+- **CHANGELOG.md** - история изменений
+- **CONTRIBUTING.md** - инструкции для контрибьюторов
+- **CODE_OF_CONDUCT.md** - кодекс поведения
+- **LICENSE** - лицензия проекта
+
+## Технические ограничения
+
+- **Лимиты API MOEX** - необходимость управления частотой запросов
+- **Лимиты Google Apps Script** - ограничения на выполнение скриптов
+- **Кэширование** - использование CacheService для оптимизации запросов
+- **Время выполнения** - необходимость учитывать лимиты на выполнение скриптов
+
+## Паттерны разработки
+
+- **Custom Functions** - пользовательские функции для использования в ячейках
+- **Кэширование с TTL** - разные интервалы кэширования для разных типов данных
+- **Обработка ошибок** - комплексная система обработки исключений
+- **Fallback-механизмы** - резервные пути получения данных
