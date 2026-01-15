@@ -1,6 +1,6 @@
 # Руководство по работе с ESLint и Prettier
 
-Полная инструкция по использованию ESLint и Prettier в проекте `rebalance_bonds_11-2025`.
+Полная инструкция по использованию ESLint и Prettier в проекте `gs_moex_bond_tools`.
 Ссылка на таблицу - https://docs.google.com/spreadsheets/d/14QN-103oPdywat3fKgZyde1zmVU4lvWSG1LIk8OlKx8/edit?usp=sharing
 
 ---
@@ -39,7 +39,7 @@ google_script/                          ← КОРЕНЬ РЕПОЗИТОРИЯ
 ├── node_modules/                       ← Установленные пакеты
 ├── docs/                               ← Документация
 │   └── ESLINT_PRETTIER_GUIDE.md
-├── rebalance_bonds_11-2025/            ← Проект 1
+├── gs_moex_bond_tools/            ← Проект 1
 │   ├── script.js
 │   └── appscript.json
 └── [другие проекты]/                   ← Будущие проекты
@@ -189,7 +189,7 @@ Prettier срабатывает **только при сохранении**:
 Убедитесь, что вы находитесь в папке проекта:
 
 ```bash
-cd /Users/pl/Documents/google_script/rebalance_bonds_11-2025
+cd /Users/pl/Documents/google_script/gs_moex_bond_tools
 ```
 
 ---
