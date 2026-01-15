@@ -28,8 +28,26 @@ Temporary Items
 .idea/
 *.swp
 *.swo
+.vscode/
+
+# Kilocode
+.kilocode/
+.kilocodemodes
+
+# Docs
+docs/
 
 # Node.js
 node_modules/
 .env
 package-lock.json
+
+# Configuration and temporary files
+*.tmp
+*.temp
+logs/
+*.log
+
+# OS generated files
+ehthumbs.db
+Thumbs.db
