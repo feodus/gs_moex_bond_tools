@@ -1,5 +1,5 @@
 {
-  "name": "gs_moex_bond_tools",
+  "name": "moex-bonddata-for-googlesheets",
   "version": "1.0.0",
   "description": "",
   "main": "script OLD.js",

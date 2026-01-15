@@ -1,4 +1,4 @@
-# MOEX Bond Data for Google Sheets
+# MOEX_BondData_for_GoogleSheets
 
 Библиотека Google Apps Script для получения данных по облигациям с Московской Биржи (MOEX) в реальном времени прямо в Google Таблицы.
 
